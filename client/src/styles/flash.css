@@ -1,0 +1,67 @@
+.flash-strip { padding: 15px 15px 0; display: grid; gap: 12px; }
+
+.flash-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(120deg, #2f3542 0%, #40485c 100%);
+  color: white;
+  border-radius: 14px;
+  padding: 14px;
+  border: 2px solid var(--flash);
+  box-shadow: 0 6px 18px rgba(255, 165, 2, 0.25);
+  animation: popIn 0.3s ease;
+}
+.flash-card.sold-out { opacity: 0.7; border-color: #777; box-shadow: none; }
+
+.flash-image {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+.flash-info { flex: 1; min-width: 0; }
+.flash-info h3 { margin: 2px 0; font-size: 1.05rem; }
+
+.flash-tag {
+  font-size: 0.68rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: var(--flash);
+  animation: pulse 2s infinite;
+}
+
+.flash-price { margin: 2px 0; }
+.flash-price s { color: #aaa; margin-right: 8px; }
+.flash-price strong { color: var(--flash); font-size: 1.15rem; }
+
+.stock-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+.stock-fill { height: 100%; background: var(--flash); border-radius: 3px; transition: width 0.4s ease; }
+
+.stock-note { margin: 0; font-size: 0.75rem; color: #ccc; }
+
+.grab-btn {
+  background: var(--flash);
+  color: #2f3542;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.grab-btn:hover:enabled { transform: scale(1.06); }
+.grab-btn:disabled { background: #666; color: #bbb; cursor: not-allowed; }
+
+.flash-badge { color: var(--flash); font-size: 0.8rem; font-weight: bold; }

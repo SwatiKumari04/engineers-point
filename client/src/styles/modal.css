@@ -1,0 +1,31 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+
+.modal-card {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  width: 85%;
+  max-width: 350px;
+  text-align: center;
+  animation: popIn 0.3s ease;
+}
+
+.modal-title { margin-top: 0; }
+.modal-success { color: var(--success); }
+.modal-error { color: var(--brand); }
+
+.checkout-total { font-size: 1.4rem; font-weight: bold; }
+
+.upi-title { color: var(--accent); margin-bottom: 10px; font-size: 1rem; }
+
+.qr-box { background: #f4f4f4; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+.qr-box img { border: 1px solid #ddd; padding: 5px; border-radius: 10px; background: white; }

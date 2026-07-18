@@ -1,0 +1,24 @@
+# Deploys the whole app as one Render web service.
+# Everything is stored in memory, so the app needs one always-on
+# process. That is why a web service and not serverless.
+services:
+  - type: web
+    name: engineers-point
+    runtime: node
+    plan: free
+    # npm skips dev deps when NODE_ENV=production, but Vite is a dev
+    # dep and we need it to build the client, so include them here.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.19.0
+      - key: ADMIN_ID
+        sync: false # owner login id, set in the Render dashboard
+      - key: BREVO_API_KEY
+        sync: false # for sending login emails, from Brevo dashboard
+      - key: BREVO_SENDER
+        sync: false # sender address verified in Brevo
