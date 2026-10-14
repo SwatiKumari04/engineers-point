@@ -1,12 +1,11 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { startTestServer, testCustomer } from "./helpers.js";
-
+import { startTestServer, stopTestServer, studentToken, testCustomer } from "./helpers.js";
 describe("orders API", () => {
   let server, api;
 
   before(async () => ({ server, api } = await startTestServer()));
-  after(() => server.close());
+  after(() => stopTestServer(server));
 
   it("serves the menu with availability flags", async () => {
     const res = await api("/menu");
@@ -84,7 +83,7 @@ describe("orders API", () => {
   });
 
   it("lets a student see only their own orders", async () => {
-    const mine = await api(`/orders?phone=${testCustomer(1).phone}`);
+    const mine = await api("/orders/mine", { token: studentToken(testCustomer(1)) });
     assert.equal(mine.status, 200);
     assert.ok(mine.body.length >= 1);
     assert.ok(mine.body.every((o) => o.customer.phone === testCustomer(1).phone));

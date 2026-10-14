@@ -1,10 +1,8 @@
-import { useAuth } from "../context/auth-context.js";
 import { useMyOrders } from "../hooks/useMyOrders.js";
 import OrderCard from "../components/orders/OrderCard.jsx";
 
 export default function OrdersPage() {
-  const { user } = useAuth();
-  const orders = useMyOrders(user.phone);
+  const orders = useMyOrders();
 
   return (
     <main className="orders-view">

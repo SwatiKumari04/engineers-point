@@ -1,13 +1,13 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { startTestServer } from "./helpers.js";
+import { startTestServer, stopTestServer } from "./helpers.js";
 
 // Tests run without SMTP configured, so the API returns devPassword.
 describe("student auth", () => {
   let server, api;
 
   before(async () => ({ server, api } = await startTestServer()));
-  after(() => server.close());
+    after(() => stopTestServer(server));
 
   const details = { name: "Asha", email: "asha@nitjsr.ac.in", phone: "9111111111" };
 
@@ -24,8 +24,9 @@ describe("student auth", () => {
       body: { email: details.email, phone: details.phone, password: issued.body.devPassword },
     });
     assert.equal(login.status, 200);
-    assert.equal(login.body.role, "student");
-    assert.equal(login.body.name, "Asha");
+    assert.ok(login.body.token);
+    assert.equal(login.body.user.role, "student");
+    assert.equal(login.body.user.name, "Asha");
   });
 
   it("rejects the same email with a different phone", async () => {

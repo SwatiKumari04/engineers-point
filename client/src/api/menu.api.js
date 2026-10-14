@@ -1,6 +1,6 @@
-import { adminHeaders, http } from "./http.js";
+import { http } from "./http.js";
 
 export const fetchMenu = () => http.get("/menu");
 
-export const setItemAvailability = (itemId, available, adminId) =>
-  http.patch(`/menu/${itemId}/availability`, { available }, { headers: adminHeaders(adminId) });
+export const setItemAvailability = (itemId, available) =>
+  http.patch(`/menu/${itemId}/availability`, { available });

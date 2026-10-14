@@ -1,12 +1,16 @@
-// One record per student, keyed by email:
-// { email, name, phone, passwordHash, passwordExpiresAt }
-const usersByEmail = new Map();
+import { getDb } from "../db.js";
+
+const users = () => getDb().collection("users");
 
 export const userStore = {
-  findByEmail: (email) => usersByEmail.get(email),
-  findByPhone: (phone) => [...usersByEmail.values()].find((user) => user.phone === phone),
-  save(user) {
-    usersByEmail.set(user.email, user);
+  findByEmail: (email) => users().findOne({ email }, { projection: { _id: 0 } }),
+
+  findByPhone: (phone) => users().findOne({ phone }, { projection: { _id: 0 } }),
+
+  // Upsert by email: creates the user if new, updates them if they already
+  // exist (e.g. requesting a fresh OTP). Keyed by email, so no duplicates.
+  async save(user) {
+    await users().updateOne({ email: user.email }, { $set: user }, { upsert: true });
     return user;
   },
 };

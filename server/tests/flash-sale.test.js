@@ -1,12 +1,12 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { startTestServer, testCustomer } from "./helpers.js";
+import { startTestServer, stopTestServer, testCustomer } from "./helpers.js";
 
 describe("flash sale API", () => {
   let server, api;
 
   before(async () => ({ server, api } = await startTestServer()));
-  after(() => server.close());
+   after(() => stopTestServer(server));
 
   const launchSale = (overrides = {}) =>
     api("/flash-sales", {

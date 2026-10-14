@@ -7,12 +7,12 @@ const PASSWORD_TTL_MS = 10 * 60_000;
 
 // An email and a phone number form one identity. Once paired, using either
 // one with a different partner is rejected as invalid credentials.
-const assertPairIsConsistent = (email, phone) => {
-  const byEmail = userStore.findByEmail(email);
+const assertPairIsConsistent = async (email, phone) => {
+  const byEmail = await userStore.findByEmail(email);
   if (byEmail && byEmail.phone !== phone) {
     throw ApiError.unauthorized("Invalid credentials", "EMAIL_PHONE_MISMATCH");
   }
-  const byPhone = userStore.findByPhone(phone);
+  const byPhone = await userStore.findByPhone(phone);
   if (byPhone && byPhone.email !== email) {
     throw ApiError.unauthorized("Invalid credentials", "EMAIL_PHONE_MISMATCH");
   }
@@ -21,10 +21,10 @@ const assertPairIsConsistent = (email, phone) => {
 export const authService = {
   async requestPassword({ name, email, phone }) {
     email = email.toLowerCase();
-    assertPairIsConsistent(email, phone);
+       await assertPairIsConsistent(email, phone);
 
     const password = generatePassword();
-    userStore.save({
+        await userStore.save({
       email,
       name,
       phone,
@@ -37,8 +37,8 @@ export const authService = {
     return delivered ? { sent: true } : { sent: false, devPassword: password };
   },
 
-  login({ email, phone, password }) {
-    const user = userStore.findByEmail(email.toLowerCase());
+  async login({ email, phone, password }) {
+    const user = await userStore.findByEmail(email.toLowerCase());
     if (!user || user.phone !== phone) {
       throw ApiError.unauthorized("Invalid credentials");
     }

@@ -9,7 +9,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error.middleware.js"
 // Builds the app without calling listen(), so tests can mount it on a random port.
 export function createApp() {
   const app = express();
-
+  if (config.serveClient) app.set("trust proxy", 1); // trust Render's proxy for correct client IPs
   app.use(cors({ origin: config.clientOrigin }));
   app.use(express.json());
 

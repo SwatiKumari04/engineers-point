@@ -1,6 +1,9 @@
 // All environment variables are read here and nowhere else.
 export const config = {
+    jwtSecret: process.env.JWT_SECRET ?? "dev-secret-change-me",
   port: Number(process.env.PORT ?? 5000),
+    mongoUri: process.env.MONGODB_URI ?? "mongodb://localhost:27017",
+  dbName: process.env.DB_NAME ?? "engineers_point",
   clientOrigin: process.env.CLIENT_ORIGIN ?? "http://localhost:5173",
   adminId: process.env.ADMIN_ID ?? "admin@nitjsr",
   // In production the same server also serves the built client.

@@ -24,7 +24,7 @@ export default function MenuPage({ onOrderPlaced }) {
     activeCategory === "All" ? menu : menu.filter((item) => item.category === activeCategory);
   // Available items first; out-of-stock ones sink below them in the grid.
   const visibleItems = [...inCategory].sort((a, b) => Number(b.available) - Number(a.available));
-
+  
   const handleConfirm = async () => {
     try {
       const { droppedItems } = await placeOrder({

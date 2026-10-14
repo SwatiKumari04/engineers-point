@@ -1,13 +1,11 @@
 import { setItemAvailability } from "../../api/menu.api.js";
-import { useAuth } from "../../context/auth-context.js";
 import { useMenu } from "../../hooks/useMenu.js";
 
 export default function MenuPanel() {
-  const { user } = useAuth();
   const { menu, refresh } = useMenu();
 
   const toggle = async (item) => {
-    await setItemAvailability(item.id, !item.available, user.adminId);
+    await setItemAvailability(item.id, !item.available);
     await refresh();
   };
 

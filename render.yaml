@@ -1,13 +1,11 @@
-# Deploys the whole app as one Render web service.
-# Everything is stored in memory, so the app needs one always-on
-# process. That is why a web service and not serverless.
+# Deploys the whole app as one Render web service: an always-on Node server
+# that serves the built client and connects to MongoDB Atlas for storage.
 services:
   - type: web
     name: engineers-point
     runtime: node
     plan: free
-    # npm skips dev deps when NODE_ENV=production, but Vite is a dev
-    # dep and we need it to build the client, so include them here.
+    # Vite is a dev dependency but is needed to build the client, so include dev deps.
     buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /api/v1/health
@@ -16,9 +14,15 @@ services:
         value: production
       - key: NODE_VERSION
         value: 22.19.0
+      - key: DB_NAME
+        value: engineers_point
+      - key: MONGODB_URI
+        sync: false # MongoDB Atlas connection string, set in the Render dashboard
+      - key: JWT_SECRET
+        sync: false # long random string for signing login tokens
       - key: ADMIN_ID
-        sync: false # owner login id, set in the Render dashboard
+        sync: false
       - key: BREVO_API_KEY
-        sync: false # for sending login emails, from Brevo dashboard
+        sync: false
       - key: BREVO_SENDER
-        sync: false # sender address verified in Brevo
+        sync: false

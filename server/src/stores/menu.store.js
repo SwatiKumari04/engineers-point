@@ -1,15 +1,14 @@
-import { MENU_SEED } from "../data/menu.seed.js";
+import { getDb } from "../db.js";
 
-// In-memory store. It exposes the same interface a database-backed store
-// would, so swapping in MongoDB later only changes this file.
-const items = MENU_SEED.map((item) => ({ ...item, available: true }));
+const menu = () => getDb().collection("menu");
 
 export const menuStore = {
-  list: () => items.map((item) => ({ ...item })),
-  findById: (id) => items.find((item) => item.id === id),
-  setAvailability(id, available) {
-    const item = items.find((i) => i.id === id);
-    if (item) item.available = available;
-    return item;
+  list: () => menu().find({}, { projection: { _id: 0 } }).toArray(),
+
+  findById: (id) => menu().findOne({ id }, { projection: { _id: 0 } }),
+
+  async setAvailability(id, available) {
+    await menu().updateOne({ id }, { $set: { available } });
+    return menu().findOne({ id }, { projection: { _id: 0 } });
   },
 };

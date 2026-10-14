@@ -1,4 +1,4 @@
-import { adminHeaders, http } from "./http.js";
+import { http } from "./http.js";
 
 export const fetchCurrentSales = () => http.get("/flash-sales/current");
 
@@ -8,8 +8,6 @@ export const confirmSale = (saleId, customer) => http.post(`/flash-sales/${saleI
 
 export const releaseSale = (saleId, customer) => http.post(`/flash-sales/${saleId}/release`, { customer });
 
-export const launchSale = (payload, adminId) =>
-  http.post("/flash-sales", payload, { headers: adminHeaders(adminId) });
+export const launchSale = (payload) => http.post("/flash-sales", payload);
 
-export const endSale = (saleId, adminId) =>
-  http.patch(`/flash-sales/${saleId}/end`, undefined, { headers: adminHeaders(adminId) });
+export const endSale = (saleId) => http.patch(`/flash-sales/${saleId}/end`);

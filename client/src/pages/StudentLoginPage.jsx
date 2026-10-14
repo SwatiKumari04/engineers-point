@@ -36,8 +36,8 @@ export default function StudentLoginPage({ onSwitchToAdmin }) {
     event.preventDefault();
     const password = new FormData(event.target).get("password").trim();
     try {
-      const user = await studentLogin({ email: details.email, phone: details.phone, password });
-      login(user);
+      const result = await studentLogin({ email: details.email, phone: details.phone, password });
+      login(result);
     } catch (err) {
       setError(err.message);
     }

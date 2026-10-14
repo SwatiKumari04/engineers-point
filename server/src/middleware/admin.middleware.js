@@ -1,11 +1,13 @@
-import { config } from "../config.js";
 import { ApiError } from "../utils/api-error.js";
+import { verifyToken } from "../utils/jwt.js";
 
-// Guards owner-only routes with the x-admin-id header. A production app
-// would use sessions or JWTs; a shared-secret header is enough for this scale.
+// Owner-only guard: verify the JWT and require the owner role.
 export const requireAdmin = (req, _res, next) => {
-  if (req.get("x-admin-id") !== config.adminId) {
-    return next(ApiError.unauthorized("Owner access required"));
-  }
+  const header = req.get("authorization") ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  const user = token ? verifyToken(token) : null;
+  if (!user) return next(ApiError.unauthorized("Login required"));
+  if (user.role !== "owner") return next(ApiError.unauthorized("Owner access required"));
+  req.user = user;
   next();
 };

@@ -10,12 +10,12 @@ export const orderService = {
   // client is ignored, so a tampered request cannot change what is charged.
   // Out-of-stock items are dropped from the order; if nothing is left the
   // whole order is rejected.
-  place({ customer, items, paymentMethod }) {
+async place({ customer, items, paymentMethod }) {
     const lines = [];
     const droppedItems = [];
 
     for (const { itemId, qty } of items) {
-      const item = menuStore.findById(itemId);
+      const item = await menuStore.findById(itemId);
       if (!item) throw ApiError.badRequest(`Unknown menu item: ${itemId}`);
       if (!item.available) {
         droppedItems.push(item.name);
@@ -28,7 +28,7 @@ export const orderService = {
       throw ApiError.conflict("Out of stock", "OUT_OF_STOCK");
     }
 
-    const order = orderStore.create({
+    const order = await orderStore.create({
       customer,
       items: lines,
       total: lines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0),
@@ -43,13 +43,12 @@ export const orderService = {
   listForPhone: (phone) => orderStore.listByPhone(phone),
   listAll: () => orderStore.listAll(),
 
-  markReady(id) {
-    const order = orderStore.findById(id);
+  async markReady(id) {
+    const order = await orderStore.findById(id);
     if (!order) throw ApiError.notFound("Order not found");
     if (order.status !== ORDER_STATUS.PREPARING) {
       throw ApiError.conflict("Only preparing orders can be marked ready");
     }
-    order.status = ORDER_STATUS.READY;
-    return order;
+    return orderStore.setStatus(id, ORDER_STATUS.READY);
   },
 };

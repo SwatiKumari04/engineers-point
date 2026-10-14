@@ -11,4 +11,5 @@ export class ApiError extends Error {
   static notFound = (message, code = "NOT_FOUND") => new ApiError(404, code, message);
   static conflict = (message, code = "CONFLICT") => new ApiError(409, code, message);
   static gone = (message, code = "GONE") => new ApiError(410, code, message);
+    static tooManyRequests = (message, code = "RATE_LIMITED") => new ApiError(429, code, message);
 }

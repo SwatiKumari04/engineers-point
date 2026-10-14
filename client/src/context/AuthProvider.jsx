@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { AuthContext } from "./auth-context.js";
 
-const STORAGE_KEY = "ep-user";
+const USER_KEY = "ep-user";
+const TOKEN_KEY = "ep-token";
 
 function loadStoredUser() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return JSON.parse(localStorage.getItem(USER_KEY));
   } catch {
     return null;
   }
@@ -14,13 +15,16 @@ function loadStoredUser() {
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(loadStoredUser);
 
-  const login = useCallback((userData) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
-    setUser(userData);
+  // login now receives { token, user } from the server.
+  const login = useCallback(({ token, user }) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    localStorage.setItem(TOKEN_KEY, token);
+    setUser(user);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(TOKEN_KEY);
     setUser(null);
   }, []);
 

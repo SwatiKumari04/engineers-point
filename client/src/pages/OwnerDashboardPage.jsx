@@ -5,8 +5,8 @@ import MenuPanel from "../components/owner/MenuPanel.jsx";
 import OwnerOrderCard from "../components/owner/OwnerOrderCard.jsx";
 
 export default function OwnerDashboardPage() {
-  const { user, logout } = useAuth();
-  const { orders, markReady } = useAllOrders(user.adminId);
+  const { logout } = useAuth();
+  const { orders, markReady } = useAllOrders();
 
   return (
     <div className="owner-dashboard">

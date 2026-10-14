@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { endSale, launchSale } from "../../api/flashSales.api.js";
-import { useAuth } from "../../context/auth-context.js";
 import { useFlashSales } from "../../hooks/useFlashSales.js";
 import { useMenu } from "../../hooks/useMenu.js";
 import Modal from "../common/Modal.jsx";
 
 export default function FlashSalePanel() {
-  const { user } = useAuth();
   const { menu } = useMenu();
   const { sales, refresh } = useFlashSales();
   const [error, setError] = useState("");
@@ -15,15 +13,12 @@ export default function FlashSalePanel() {
     event.preventDefault();
     const form = new FormData(event.target);
     try {
-      await launchSale(
-        {
-          itemId: form.get("itemId"),
-          salePrice: Number(form.get("salePrice")),
-          stock: Number(form.get("stock")),
-          durationMinutes: Number(form.get("durationMinutes")),
-        },
-        user.adminId,
-      );
+      await launchSale({
+        itemId: form.get("itemId"),
+        salePrice: Number(form.get("salePrice")),
+        stock: Number(form.get("stock")),
+        durationMinutes: Number(form.get("durationMinutes")),
+      });
       event.target.reset();
       await refresh();
     } catch (err) {
@@ -32,7 +27,7 @@ export default function FlashSalePanel() {
   };
 
   const handleEnd = async (saleId) => {
-    await endSale(saleId, user.adminId);
+    await endSale(saleId);
     await refresh();
   };
 

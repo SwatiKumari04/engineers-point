@@ -1,5 +1,4 @@
 import { ApiError } from "../utils/api-error.js";
-import { Mutex } from "../utils/mutex.js";
 import { flashSaleStore } from "../stores/flashSale.store.js";
 import { menuStore } from "../stores/menu.store.js";
 import { orderStore } from "../stores/order.store.js";
@@ -8,33 +7,47 @@ import { ORDER_SOURCE, ORDER_STATUS } from "./order.service.js";
 export const SALE_STATUS = { ACTIVE: "ACTIVE", SOLD_OUT: "SOLD_OUT", ENDED: "ENDED" };
 export const CLAIM_STATE = { PENDING: "PENDING", CONFIRMED: "CONFIRMED" };
 
-// One lock per sale: claims for the same sale queue up, but claims for
-// different sales never block each other.
-const locks = new Map();
-const lockFor = (saleId) => {
-  if (!locks.has(saleId)) locks.set(saleId, new Mutex());
-  return locks.get(saleId);
-};
+// A reserved-but-unpaid claim is auto-released after this long.
+const CLAIM_TTL_MS = 3 * 60_000;
 
 const isExpired = (sale) => Date.now() >= sale.endsAt;
 const isLive = (sale) => sale.status === SALE_STATUS.ACTIVE && !isExpired(sale);
 
-// Strip internal fields before a sale leaves the server.
-const toPublic = ({ claimedBy, ...sale }) => ({ ...sale, claimedCount: claimedBy.size });
+// claimedBy is { phone: { state, at } }. A sold-out sale (stock 0, still active)
+// is presented as SOLD_OUT — derived, not stored.
+const toPublic = ({ claimedBy, ...sale }) => ({
+  ...sale,
+  status: sale.status === SALE_STATUS.ACTIVE && sale.stock === 0 ? SALE_STATUS.SOLD_OUT : sale.status,
+  claimedCount: Object.keys(claimedBy ?? {}).length,
+});
+
+// Lazily return units from PENDING claims older than the TTL — no background
+// timer; we sweep right when someone new tries to claim, which is when it matters.
+async function releaseStaleClaims(saleId) {
+  const sale = await flashSaleStore.findById(saleId);
+  if (!sale) return;
+  const cutoff = Date.now() - CLAIM_TTL_MS;
+  for (const [phone, claim] of Object.entries(sale.claimedBy ?? {})) {
+    if (claim.state === CLAIM_STATE.PENDING && claim.at < cutoff) {
+      await flashSaleStore.tryRelease(saleId, phone); // atomic: only releases if still PENDING
+    }
+  }
+}
 
 export const flashSaleService = {
-  launch({ itemId, salePrice, stock, durationMinutes }) {
-    const item = menuStore.findById(itemId);
+  async launch({ itemId, salePrice, stock, durationMinutes }) {
+    const item = await menuStore.findById(itemId);
     if (!item) throw ApiError.notFound("Menu item not found");
     if (!item.available) throw ApiError.conflict("This item is out of stock");
     if (salePrice >= item.price) {
       throw ApiError.badRequest("Sale price must be lower than the regular price");
     }
-    if (flashSaleStore.listAll().some((sale) => sale.itemId === itemId && isLive(sale))) {
+    const existing = await flashSaleStore.listAll();
+    if (existing.some((sale) => sale.itemId === itemId && isLive(sale))) {
       throw ApiError.conflict("This item already has a live flash sale");
     }
 
-    return toPublic(flashSaleStore.create({
+    return toPublic(await flashSaleStore.create({
       itemId,
       itemName: item.name,
       image: item.image,
@@ -47,86 +60,60 @@ export const flashSaleService = {
     }));
   },
 
-  // Live sales plus just-sold-out ones (until expiry), so the UI can still
-  // show a "sold out" card instead of the sale vanishing.
-  listCurrent: () =>
-    flashSaleStore.listAll()
+  listCurrent: async () =>
+    (await flashSaleStore.listAll())
       .filter((sale) => sale.status !== SALE_STATUS.ENDED && !isExpired(sale))
       .map(toPublic),
 
-  end(id) {
-    const sale = flashSaleStore.findById(id);
+  async end(id) {
+    const sale = await flashSaleStore.setEnded(id);
     if (!sale) throw ApiError.notFound("Flash sale not found");
-    sale.status = SALE_STATUS.ENDED;
     return toPublic(sale);
   },
 
-  // Reserve one unit; no order exists yet. Every claim for a sale runs
-  // through that sale's mutex, so claims are processed one at a time in
-  // arrival order. The stock check and the decrement can never interleave,
-  // which is what prevents overselling when many students click at once.
-  claim(saleId, customer) {
-    return lockFor(saleId).runExclusive(async () => {
-      const sale = flashSaleStore.findById(saleId);
-      if (!sale) throw ApiError.notFound("Flash sale not found");
-      if (sale.status === SALE_STATUS.ENDED || isExpired(sale)) {
-        throw ApiError.gone("This flash sale has ended", "SALE_ENDED");
-      }
-      if (sale.claimedBy.has(customer.phone)) {
-        throw ApiError.conflict("You have already claimed this deal", "ALREADY_CLAIMED");
-      }
-      if (sale.stock === 0) {
-        throw ApiError.conflict("Out of stock", "SOLD_OUT");
-      }
+  async claim(saleId, customer) {
+    await releaseStaleClaims(saleId); // free abandoned reservations first
+    const updated = await flashSaleStore.tryClaim(saleId, customer.phone, Date.now());
+    if (updated) return { stockLeft: updated.stock };
 
-      sale.stock -= 1;
-      sale.claimedBy.set(customer.phone, CLAIM_STATE.PENDING);
-      if (sale.stock === 0) sale.status = SALE_STATUS.SOLD_OUT;
-
-      return { stockLeft: sale.stock };
-    });
+    // The atomic update matched nothing — inspect the sale to return a precise error.
+    const sale = await flashSaleStore.findById(saleId);
+    if (!sale) throw ApiError.notFound("Flash sale not found");
+    if (sale.status === SALE_STATUS.ENDED || isExpired(sale)) {
+      throw ApiError.gone("This flash sale has ended", "SALE_ENDED");
+    }
+    if (sale.claimedBy[customer.phone]) {
+      throw ApiError.conflict("You have already claimed this deal", "ALREADY_CLAIMED");
+    }
+    throw ApiError.conflict("Out of stock", "SOLD_OUT");
   },
 
-  // PAID at the QR screen: the reservation becomes a kitchen order. Allowed
-  // even after the sale ends, because the unit was reserved in time.
-  confirm(saleId, customer) {
-    return lockFor(saleId).runExclusive(async () => {
-      const sale = flashSaleStore.findById(saleId);
-      if (!sale) throw ApiError.notFound("Flash sale not found");
-      if (sale.claimedBy.get(customer.phone) !== CLAIM_STATE.PENDING) {
-        throw ApiError.conflict("No pending claim to confirm", "NO_PENDING_CLAIM");
-      }
+  async confirm(saleId, customer) {
+    const sale = await flashSaleStore.tryConfirm(saleId, customer.phone);
+    if (!sale) {
+      if (!(await flashSaleStore.findById(saleId))) throw ApiError.notFound("Flash sale not found");
+      throw ApiError.conflict("No pending claim to confirm", "NO_PENDING_CLAIM");
+    }
 
-      sale.claimedBy.set(customer.phone, CLAIM_STATE.CONFIRMED);
-      const order = orderStore.create({
-        customer,
-        items: [{ itemId: sale.itemId, name: sale.itemName, qty: 1, unitPrice: sale.salePrice }],
-        total: sale.salePrice,
-        paymentMethod: "UPI",
-        status: ORDER_STATUS.PREPARING,
-        source: ORDER_SOURCE.FLASH_SALE,
-        flashSaleId: sale.id,
-      });
-
-      return { order };
+    const order = await orderStore.create({
+      customer,
+      items: [{ itemId: sale.itemId, name: sale.itemName, qty: 1, unitPrice: sale.salePrice }],
+      total: sale.salePrice,
+      paymentMethod: "UPI",
+      status: ORDER_STATUS.PREPARING,
+      source: ORDER_SOURCE.FLASH_SALE,
+      flashSaleId: sale.id,
     });
+
+    return { order };
   },
 
-  // CANCEL at the QR screen: the reserved unit goes back on sale and the
-  // student may grab again later while stock lasts.
-  release(saleId, customer) {
-    return lockFor(saleId).runExclusive(async () => {
-      const sale = flashSaleStore.findById(saleId);
-      if (!sale) throw ApiError.notFound("Flash sale not found");
-      if (sale.claimedBy.get(customer.phone) !== CLAIM_STATE.PENDING) {
-        throw ApiError.conflict("No pending claim to release", "NO_PENDING_CLAIM");
-      }
-
-      sale.claimedBy.delete(customer.phone);
-      sale.stock += 1;
-      if (sale.status === SALE_STATUS.SOLD_OUT) sale.status = SALE_STATUS.ACTIVE;
-
-      return { stockLeft: sale.stock };
-    });
+  async release(saleId, customer) {
+    const sale = await flashSaleStore.tryRelease(saleId, customer.phone);
+    if (!sale) {
+      if (!(await flashSaleStore.findById(saleId))) throw ApiError.notFound("Flash sale not found");
+      throw ApiError.conflict("No pending claim to release", "NO_PENDING_CLAIM");
+    }
+    return { stockLeft: sale.stock };
   },
 };

@@ -11,8 +11,8 @@ export default function AdminLoginPage({ onSwitchToStudent }) {
     event.preventDefault();
     const adminId = new FormData(event.target).get("adminId").trim();
     try {
-      const owner = await adminLogin(adminId); // verified server-side
-      login({ ...owner, adminId });
+      const result = await adminLogin(adminId);
+      login(result);
     } catch {
       setDenied(true);
     }
